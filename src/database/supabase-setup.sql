@@ -182,7 +182,7 @@ BEGIN
 END;
 $$;
 
--- Function to find quiz by access code
+-- Function to find quiz by access code - FIXED to prevent ambiguity
 CREATE OR REPLACE FUNCTION find_quiz_by_access_code(code TEXT)
 RETURNS TABLE (
   id UUID,

@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { createQuiz, CreateQuizRequest } from '@/lib/api';
 import { useToast } from "@/components/ui/use-toast";
-import { Trash2, Plus, Check, X } from 'lucide-react';
+import { Trash2, Plus, Check, X, Key } from 'lucide-react';
 
 interface QuizCreatorProps {
   userId: string;
@@ -17,6 +16,7 @@ interface QuizCreatorProps {
 const QuizCreator: React.FC<QuizCreatorProps> = ({ userId, onQuizCreated }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [accessCode, setAccessCode] = useState('');
   const [questions, setQuestions] = useState<Array<{
     question_text: string;
     question_type: 'multiple_choice' | 'true_false';
@@ -37,6 +37,7 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ userId, onQuizCreated }) => {
     }
   ]);
   const [isLoading, setIsLoading] = useState(false);
+  const [useCustomCode, setUseCustomCode] = useState(false);
   const { toast } = useToast();
 
   const handleAddQuestion = () => {
@@ -71,14 +72,12 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ userId, onQuizCreated }) => {
     const newQuestions = [...questions];
     (newQuestions[index] as any)[field] = value;
     
-    // If changing from multiple choice to true/false, adjust answers
     if (field === 'question_type' && value === 'true_false') {
       newQuestions[index].answers = [
         { answer_text: 'True', is_correct: true },
         { answer_text: 'False', is_correct: false }
       ];
     } else if (field === 'question_type' && value === 'multiple_choice' && newQuestions[index].answers.length === 2) {
-      // If changing from true/false to multiple choice, reset answers
       newQuestions[index].answers = [
         { answer_text: '', is_correct: true },
         { answer_text: '', is_correct: false },
@@ -94,7 +93,6 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ userId, onQuizCreated }) => {
     const newQuestions = [...questions];
     (newQuestions[questionIndex].answers[answerIndex] as any)[field] = value;
     
-    // If setting this answer as correct, make all others incorrect
     if (field === 'is_correct' && value === true) {
       newQuestions[questionIndex].answers.forEach((answer, i) => {
         if (i !== answerIndex) {
@@ -147,7 +145,6 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ userId, onQuizCreated }) => {
         (_, i) => i !== answerIndex
       );
       
-      // If removing the correct answer, set the first answer as correct
       if (isRemovingCorrectAnswer) {
         newQuestions[questionIndex].answers[0].is_correct = true;
       }
@@ -172,6 +169,26 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ userId, onQuizCreated }) => {
       return false;
     }
     
+    if (useCustomCode) {
+      if (!accessCode.trim()) {
+        toast({
+          title: "Error",
+          description: "Access code is required when custom code is enabled",
+          variant: "destructive"
+        });
+        return false;
+      }
+      
+      if (accessCode.trim().length < 4 || accessCode.trim().length > 10) {
+        toast({
+          title: "Error",
+          description: "Access code must be between 4 and 10 characters",
+          variant: "destructive"
+        });
+        return false;
+      }
+    }
+    
     for (let i = 0; i < questions.length; i++) {
       if (!questions[i].question_text.trim()) {
         toast({
@@ -193,7 +210,6 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ userId, onQuizCreated }) => {
         }
       }
       
-      // Check if there's at least one correct answer
       if (!questions[i].answers.some(answer => answer.is_correct)) {
         toast({
           title: "Error",
@@ -219,8 +235,11 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ userId, onQuizCreated }) => {
       const quizData: CreateQuizRequest = {
         title,
         description: description.trim() || undefined,
+        access_code: useCustomCode ? accessCode.trim().toUpperCase() : undefined,
         questions
       };
+      
+      console.log("Submitting quiz data:", quizData);
       
       const quiz = await createQuiz(userId, quizData);
       if (quiz) {
@@ -267,6 +286,40 @@ const QuizCreator: React.FC<QuizCreatorProps> = ({ userId, onQuizCreated }) => {
               placeholder="Enter quiz description"
               disabled={isLoading}
             />
+          </div>
+          
+          <div className="border p-4 rounded-lg space-y-2">
+            <div className="flex items-center space-x-2">
+              <Checkbox 
+                checked={useCustomCode} 
+                onCheckedChange={(checked) => setUseCustomCode(checked === true)}
+                id="custom-code"
+                disabled={isLoading}
+              />
+              <label 
+                htmlFor="custom-code"
+                className="flex items-center text-sm font-medium cursor-pointer"
+              >
+                <Key className="h-4 w-4 mr-1" /> Use custom access code
+              </label>
+            </div>
+            
+            {useCustomCode && (
+              <div>
+                <Input
+                  type="text"
+                  value={accessCode}
+                  onChange={(e) => setAccessCode(e.target.value.toUpperCase())}
+                  placeholder="Enter custom access code (4-10 characters)"
+                  maxLength={10}
+                  disabled={isLoading}
+                  className="mt-2"
+                />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Custom access codes make it easier to share your quiz. If not provided, a random code will be generated.
+                </p>
+              </div>
+            )}
           </div>
         </div>
         

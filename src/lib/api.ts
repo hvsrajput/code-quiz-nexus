@@ -1,4 +1,3 @@
-
 import { supabase } from './supabase';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -77,6 +76,7 @@ export interface QuizResult {
 export interface CreateQuizRequest {
   title: string;
   description?: string;
+  access_code?: string;
   questions: {
     question_text: string;
     question_type: 'multiple_choice' | 'true_false';
@@ -122,19 +122,27 @@ export async function createOrGetUser(name: string): Promise<User | null> {
 // Quiz functions
 export async function createQuiz(creatorId: string, quizData: CreateQuizRequest): Promise<Quiz | null> {
   try {
-    // Start a transaction by using Supabase's client
+    console.log("Creating quiz with data:", quizData);
+    
+    // Generate a custom access code or let the database generate it
+    const accessCode = quizData.access_code || null;
+    
     // 1. Create the quiz
     const { data: quiz, error: quizError } = await supabase
       .from('quizzes')
       .insert({
         title: quizData.title,
         description: quizData.description || null,
-        creator_id: creatorId
+        creator_id: creatorId,
+        access_code: accessCode
       })
       .select()
       .single();
     
-    if (quizError) throw quizError;
+    if (quizError) {
+      console.error("Error inserting quiz:", quizError);
+      throw quizError;
+    }
     
     // 2. Create questions and answers
     for (let i = 0; i < quizData.questions.length; i++) {
@@ -152,7 +160,10 @@ export async function createQuiz(creatorId: string, quizData: CreateQuizRequest)
         .select()
         .single();
       
-      if (questionError) throw questionError;
+      if (questionError) {
+        console.error("Error inserting question:", questionError);
+        throw questionError;
+      }
       
       // Create answers for this question
       const answersToInsert = questionData.answers.map((ans, index) => ({
@@ -166,7 +177,10 @@ export async function createQuiz(creatorId: string, quizData: CreateQuizRequest)
         .from('answers')
         .insert(answersToInsert);
       
-      if (answersError) throw answersError;
+      if (answersError) {
+        console.error("Error inserting answers:", answersError);
+        throw answersError;
+      }
     }
     
     return quiz as Quiz;
@@ -178,6 +192,7 @@ export async function createQuiz(creatorId: string, quizData: CreateQuizRequest)
 
 export async function findQuizByAccessCode(accessCode: string): Promise<Quiz | null> {
   try {
+    // Use the fixed RPC function that avoids the ambiguous column issue
     const { data, error } = await supabase
       .rpc('find_quiz_by_access_code', { code: accessCode });
     
