@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import UserNameForm from '@/components/UserNameForm';
 import CodeEntryForm from '@/components/CodeEntryForm';
@@ -6,6 +5,7 @@ import QuizCreator from '@/components/QuizCreator';
 import QuizTaker from '@/components/QuizTaker';
 import QuizResult from '@/components/QuizResult';
 import DashboardTabs from '@/components/DashboardTabs';
+import Navbar from '@/components/Navbar';
 
 // Define the app states
 type AppState = 'login' | 'dashboard' | 'create' | 'join' | 'take' | 'result';
@@ -28,6 +28,14 @@ const Index = () => {
       setAppState('dashboard');
     }
   }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem('userId');
+    localStorage.removeItem('userName');
+    setUserId(null);
+    setUserName(null);
+    setAppState('login');
+  };
 
   // Handle user creation/login
   const handleUserCreated = (userId: string, userName: string) => {
@@ -64,13 +72,12 @@ const Index = () => {
     setAppState('dashboard');
   };
 
-  // Render content based on app state
   const renderContent = () => {
     switch (appState) {
       case 'login':
         return (
           <div className="my-8">
-            <h1 className="text-3xl font-bold text-center mb-6">Welcome to Code Quiz Nexus</h1>
+            <h1 className="text-3xl font-bold text-center mb-6">Welcome to Smart Quiz</h1>
             <p className="text-center text-muted-foreground mb-8">Please enter your name to continue</p>
             <UserNameForm onUserCreated={handleUserCreated} />
           </div>
@@ -130,8 +137,11 @@ const Index = () => {
   };
 
   return (
-    <div className="container mx-auto px-4 py-8 min-h-screen">
-      {renderContent()}
+    <div className="min-h-screen bg-background">
+      <Navbar userName={userName} onLogout={handleLogout} />
+      <div className="container mx-auto px-4 py-4">
+        {renderContent()}
+      </div>
     </div>
   );
 };
